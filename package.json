@@ -1,0 +1,30 @@
+{
+  "name": "aurashare",
+  "version": "1.0.0",
+  "description": "Automates auras in Pathfinder 1e",
+  "author": "bhudnell",
+  "license": "MIT",
+  "main": "src/main.mjs",
+  "scripts": {
+    "lint": "eslint --fix **/*.{mjs,js}",
+    "prettier": "prettier --write .",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.22.0",
+    "eslint": "^9.22.0",
+    "eslint-config-prettier": "^10.1.1",
+    "eslint-plugin-html": "^8.1.2",
+    "eslint-plugin-import": "^2.31.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.0",
+    "prettier": "^3.5.3"
+  },
+  "lint-staged": {
+    "*.{mjs,js}": [
+      "eslint --fix --max-warnings=0",
+      "prettier --write"
+    ],
+    "*.{hbs,css,json}": "prettier --write"
+  }
+}

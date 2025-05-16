@@ -1,0 +1,8 @@
+node_modules/
+
+# have to ignore these files because prettier cant handle triple-stash's and ignoring the individual line wasnt working
+templates/chat/event-roll.hbs
+templates/items/parts/changes.hbs
+
+# ignore srcPacks, theyre formatted by foundry
+srcPacks/
