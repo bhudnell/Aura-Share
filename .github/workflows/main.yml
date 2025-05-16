@@ -30,7 +30,7 @@ jobs:
           download: https://github.com/${{github.repository}}/releases/download/${{github.event.release.tag_name}}/module.zip
 
       # Create a zip file with all files required by the module to add to the release
-      - run: zip -r ./module.zip lang/ packs/ src/ styles/ templates/ module.json LICENSE
+      - run: zip -r ./module.zip lang/ src/ module.json LICENSE
 
       # Create a release for this specific version
       - name: Update Release with Files
@@ -47,9 +47,9 @@ jobs:
           body: ${{ github.event.release.body }}
 
       # POST to the package admin release endpoint
-      - name: Publish Module to FoundryVTT Website
-        id: publish-to-foundry-website
-        uses: cs96and/FoundryVTT-release-package@v1
-        with:
-          package-token: ${{ secrets.PACKAGE_TOKEN }}
-          manifest-url: https://github.com/${{github.repository}}/releases/download/${{github.event.release.tag_name}}/module.json
+      # - name: Publish Module to FoundryVTT Website TODO uncomment once package is approved
+      #   id: publish-to-foundry-website
+      #   uses: cs96and/FoundryVTT-release-package@v1
+      #   with:
+      #     package-token: ${{ secrets.PACKAGE_TOKEN }}
+      #     manifest-url: https://github.com/${{github.repository}}/releases/download/${{github.event.release.tag_name}}/module.json
