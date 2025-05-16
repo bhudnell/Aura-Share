@@ -1,20 +1,14 @@
+## I've taken over maintenance of this module from Fiona, so this is the repository going forward
+
 ![image](https://i.imgur.com/Up1jqTJ.png)
 
-  <br>
-<strong>This mod is presently compatible with Pathfinder 1e</strong>  <br>
+<strong>This mod is presently compatible with Pathfinder 1e</strong>
 
-Aura Share: Automates the sharing of buffs between tokens. This makes handling auras easier. The conditions for automating the auras are listed in the notes below. (It's pretty simple) <br>
-<br>
-If you enjoy this mod feel free to tip! <br>
-https://ko-fi.com/cactuarcrunch <br>
-<br>
-<br>
-Manifest URL: https://github.com/FionaBrightgrass/Aura-Share/raw/main/module.json <br>
-<br>
+Aura Share: Automates the sharing of buffs between tokens. This makes handling auras easier. The conditions for automating the auras are listed in the notes below. (It's pretty simple)
 
-## Instructions: <br>
+## Instructions:
 
-Create a buff (item on a character sheet) with the dictionary flag: "radius" of atleast 0. <br>
+<p>Create a buff (item on a character sheet) with the dictionary flag: "radius" of at least 0.</p>
 <sub>...the buff now automatically shares depending on the flags below:</sub> <br> <br>
 <strong>Mandatory flags for the buff to share:</strong> <br>
 
