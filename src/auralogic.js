@@ -155,10 +155,11 @@ export class AuraLogic {
     //Converts aura data into child aura data.
     let newAura = activeActor.getEmbeddedDocument("Item", parentAura._id).toObject();
     // replaces @ references to parent rollData with their current values
+    const rollData = activeActor.getRollData();
     newAura.system.changes.forEach((c) => {
-      c.formula = Roll.replaceFormulaData(c.formula, activeActor._rollData);
+      c.formula = Roll.replaceFormulaData(c.formula, rollData);
     });
-    newAura.system.duration.value = Roll.replaceFormulaData(newAura.system.duration.value, activeActor._rollData)
+    newAura.system.duration.value = Roll.replaceFormulaData(newAura.system.duration.value, rollData);
 
     newAura.name = parentAura.name + " (" + activeActor.name + ")";
     newAura.system.identifiedName = parentAura.name + " (" + activeActor.name + ")";

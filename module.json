@@ -28,7 +28,7 @@
 
   "compatibility": {
     "minimum": "12",
-    "verified": "12.331"
+    "verified": "12.343"
   },
   "relationships": {
     "systems": [
@@ -37,7 +37,7 @@
         "type": "system",
         "compatibility": {
           "minimum": "11",
-          "verified": "11.5"
+          "verified": "11.8"
         }
       }
     ]
