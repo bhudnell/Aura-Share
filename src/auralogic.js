@@ -159,7 +159,9 @@ export class AuraLogic {
     newAura.system.changes.forEach((c) => {
       c.formula = Roll.replaceFormulaData(c.formula, rollData);
     });
-    newAura.system.duration.value = Roll.replaceFormulaData(newAura.system.duration.value, rollData);
+    if (newAura.system.duration.value) {
+      newAura.system.duration.value = Roll.replaceFormulaData(newAura.system.duration.value, rollData);
+    }
 
     newAura.name = parentAura.name + " (" + activeActor.name + ")";
     newAura.system.identifiedName = parentAura.name + " (" + activeActor.name + ")";
