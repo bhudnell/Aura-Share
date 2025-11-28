@@ -1,89 +1,45 @@
-import { AuraLogic } from "./auralogic.js";
+import { checkAuras, removeAura, applyAura } from "./auralogic.js";
 import { Settings } from "./settings.js";
-import { Utils } from "./utils.js";
 
-let sceneTokens = [];
-//to prevent over looping tokens are handled here.
+const moduleId = "aurashare";
 
 Hooks.once("i18nInit", () => {
   Settings.registerSettings();
 });
 
-Hooks.on("canvasInit", (_canvas) => {
-  if (Utils.shouldHandle()) {
-    sceneTokens.length = 0;
-    sceneTokens = Utils.createTokenArray();
-  }
-});
-
-Hooks.on("canvasReady", (_canvas) => {
-  if (Utils.shouldHandle()) {
-    sceneTokens.length = 0;
-    sceneTokens = Utils.createTokenArray();
-  }
-});
-
-Hooks.on("canvasTeardown", (_canvas) => {
-  if (Utils.shouldHandle()) {
-    sceneTokens.length = 0;
-    return;
-  }
-});
-
-Hooks.on("updateToken", (token, update, _options, _userId) => {
-  if (Utils.shouldHandle() && ("x" in update || "y" in update || "disposition" in update)) {
-    sceneTokens = Utils.createTokenArray();
-    AuraLogic.tradeAuras(token, sceneTokens, false);
-  }
-});
-
 Hooks.on("updateActor", (actor, update, _options, _userId) => {
-  if (Utils.shouldHandle() && update.system?.attributes?.hp !== undefined) {
-    if (sceneTokens?.length < 1) {
-      sceneTokens.length = 0;
-      sceneTokens = Utils.createTokenArray();
-    }
-    let tokens = actor.getActiveTokens();
-    if (tokens?.length > 0) {
-      let token = tokens[0].document;
-      AuraLogic.tradeAuras(token, sceneTokens, false);
-    }
+  // todo actor health change
+  if (update.system?.attributes?.hp !== undefined) {
+    console.warn(update);
   }
 });
 
-Hooks.on("preDeleteToken", (token, _options, _userId) => {
-  if (Utils.shouldHandle()) {
-    AuraLogic.clearInheritedAuras(token, sceneTokens);
+Hooks.on("pf1ToggleActorBuff", (actor, itemData, isActive) => {
+  if (isActive) {
+    applyAura(itemData);
+  } else {
+    removeAura(itemData);
   }
 });
 
-Hooks.on("deleteToken", (token, _options, _userId) => {
-  if (Utils.shouldHandle()) {
-    sceneTokens.length = 0;
-    sceneTokens = Utils.createTokenArray(token);
-  }
+Hooks.once("libWrapper.Ready", () => {
+  console.log(`${moduleId} | Registering LibWrapper Hooks`);
+
+  libWrapper.register(
+    moduleId,
+    "CONFIG.Scene.documentClass.prototype.prepareData",
+    function (wrapper) {
+      wrapper();
+      Promise.resolve().then(() => {
+        checkAuras(this);
+      });
+    },
+    libWrapper.WRAPPER
+  );
 });
 
-Hooks.on("createToken", (token, _options, _userId) => {
-  if (Utils.shouldHandle()) {
-    if (!sceneTokens[0]) {
-      sceneTokens.length = 0;
-      sceneTokens = Utils.createTokenArray();
-    }
-    AuraLogic.tradeAuras(token, sceneTokens);
-  }
-});
-
-Hooks.on("pf1ToggleActorBuff", (actor, itemData) => {
-  if (Utils.shouldHandle() && itemData.getItemDictionaryFlag("radius") > 0) {
-    if (sceneTokens?.length < 1) {
-      sceneTokens.length = 0;
-      sceneTokens = Utils.createTokenArray();
-    }
-    let tokens = actor.getActiveTokens();
-    if (tokens?.length > 0) {
-      let token = tokens[0].document;
-      AuraLogic.tradeAuras(token, sceneTokens);
-    }
+Hooks.once("ready", () => {
+  if (!game.modules.get("lib-wrapper")?.active && game.user.isGM) {
+    ui.notifications.error("AuraShare.LibWrapperError", { localize: true });
   }
 });

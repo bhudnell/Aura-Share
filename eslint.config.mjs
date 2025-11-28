@@ -17,9 +17,13 @@ export default [
         ...globals.browser,
         canvas: "readonly",
         foundry: "readonly",
+        CONST: "readonly",
+        ui: "readonly",
         game: "readonly",
         Hooks: "readonly",
         Roll: "readonly",
+        libWrapper: "readonly",
+        fromUuidSync: "readonly",
       },
     },
     rules: {

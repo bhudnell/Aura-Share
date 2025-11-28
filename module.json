@@ -31,6 +31,12 @@
     "verified": "12.343"
   },
   "relationships": {
+    "requires": [
+      {
+        "id": "lib-wrapper",
+        "type": "module"
+      }
+    ],
     "systems": [
       {
         "id": "pf1",
