@@ -1,3 +1,6 @@
+const MODULE = "aurashare";
+const PARENT_FLAG = "parentAuraId";
+
 let auraCheckLock = Promise.resolve();
 
 export const checkAuras = foundry.utils.debounce(async function (scene) {
@@ -12,111 +15,206 @@ export const checkAuras = foundry.utils.debounce(async function (scene) {
   });
 
   try {
-    // Get all tokens in the scene, excluding additional tokens linked to a common actor
-    // const tokens = scene.tokens.reduce((list, token) => {
-    //   if (token.isLinked && list.some((t) => t.actor === token.actor)) {
-    //     return list;
-    //   }
-    //   list.push(token);
-    //   return list;
-    // }, []);
-    const tokens = scene.tokens.contents;
+    const actors = new Set(
+      scene.tokens.contents.flatMap((t) => (primaryUpdater(t.actor) === game.user ? t.actor : []))
+    );
 
-    // Wait for any token animation to finish
-    await Promise.all(tokens.map((token) => animation(token.object)));
+    const { parentAuras, childAuras } = collectAllAuras(actors);
 
-    for (const { parentToken, parentAura } of tokens.flatMap((t) =>
-      t.actor.itemTypes.buff
-        .filter(
-          (aura) =>
-            aura.system.flags.dictionary.radius != null &&
-            (aura.system.active || aura.hasItemBooleanFlag("shareInactive")) &&
-            canShareAura(t.actor, aura)
-        )
-        .map((aura) => ({ parentToken: t, parentAura: aura }))
-    )) {
-      // eslint-disable-next-line no-await-in-loop
-      await notifyActors(parentToken, parentAura);
+    // Maps: actorId -> Set(itemId)
+    const aurasToDelete = new Map();
+    const aurasToCreate = new Map();
+
+    // Index parent auras by ID for quick lookup
+    const parentAurasById = new Map(parentAuras.map((a) => [a.id, a]));
+
+    // cleanup child auras
+    for (const childAura of childAuras) {
+      const childActor = childAura.actor;
+
+      const parentAuraId = childAura.getFlag(MODULE, PARENT_FLAG);
+      if (!parentAuraId) {
+        // orphaned child aura → delete it
+        if (!aurasToDelete.has(childActor.uuid)) {
+          aurasToDelete.set(childActor.uuid, new Set());
+        }
+        aurasToDelete.get(childActor.uuid).add(childAura.id);
+        continue;
+      }
+
+      const parentAura = parentAurasById.get(parentAuraId);
+      if (!parentAura) {
+        // parent no longer exists → delete child
+        if (!aurasToDelete.has(childActor.uuid)) {
+          aurasToDelete.set(childActor.uuid, new Set());
+        }
+        aurasToDelete.get(childActor.uuid).add(childAura.id);
+        continue;
+      }
+
+      const parentActor = parentAura.actor;
+
+      const stillInRange = actorsInRange(parentActor, childActor, parentAura);
+      if (!stillInRange) {
+        if (!aurasToDelete.has(childActor.uuid)) {
+          aurasToDelete.set(childActor.uuid, new Set());
+        }
+        aurasToDelete.get(childActor.uuid).add(childAura.id);
+      }
     }
+
+    // create child auras for each parent aura
+    for (const parentAura of parentAuras) {
+      const parentActor = parentAura.actor;
+
+      // All other actors
+      for (const targetActor of actors) {
+        if (targetActor.uuid === parentActor.uuid) {
+          continue;
+        }
+
+        const inRange = actorsInRange(parentActor, targetActor, parentAura);
+
+        const existingChild = targetActor.itemTypes.buff.find(
+          (i) => i.getItemDictionaryFlag("radius") === -1 && i.getFlag(MODULE, PARENT_FLAG) === parentAura.id
+        );
+
+        if (inRange && !existingChild) {
+          // Need to create child aura
+          if (!aurasToCreate.has(targetActor.uuid)) {
+            aurasToCreate.set(targetActor.uuid, new Set());
+          }
+          aurasToCreate.get(targetActor.uuid).add(parentAura.id);
+        }
+
+        if (!inRange && existingChild) {
+          // Need to delete child aura
+          if (!aurasToDelete.has(targetActor.uuid)) {
+            aurasToDelete.set(targetActor.uuid, new Set());
+          }
+          aurasToDelete.get(targetActor.uuid).add(existingChild.id);
+        }
+      }
+    }
+
+    // update the actors -> delete then create
+    await Promise.all(
+      Array.from(aurasToDelete, ([actorUuid, itemIds]) => {
+        const actor = fromUuidSync(actorUuid);
+        return actor.deleteEmbeddedDocuments("Item", [...itemIds]);
+      })
+    );
+
+    await Promise.all(
+      Array.from(aurasToCreate, ([actorUuid, parentIds]) => {
+        const actor = fromUuidSync(actorUuid);
+        const itemsToCreate = [...parentIds].map((pid) => generateChildAura(parentAurasById.get(pid)));
+        return actor.createEmbeddedDocuments("Item", itemsToCreate);
+      })
+    );
   } finally {
     lock.release();
   }
 }, 100);
 
-export function removeAura(aura) {
-  if (game.settings.get("aurashare", "DeleteAuras")) {
-    const tokens = aura.actor.getActiveTokens()[0]?.scene.tokens.contents ?? [];
-    for (const token of tokens) {
-      const auraToDelete = token.ac;
-    }
-  } else {
-    // TODO
+function actorsInRange(parentActor, targetActor, aura) {
+  const parentTokens = parentActor.getActiveTokens();
+  const targetTokens = targetActor.getActiveTokens();
+  const radius = aura.getItemDictionaryFlag("radius");
+
+  if (!parentTokens.length || !targetTokens.length) {
+    return false;
   }
+
+  for (const pt of parentTokens) {
+    for (const tt of targetTokens) {
+      const d = measureTokenDistance(pt.document, tt.document);
+      if (d <= radius && validateDisposition(pt.document, tt.document, aura)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
-export function applyAura(aura) {}
+function collectAllAuras(actors) {
+  const parentAuras = [];
+  const childAuras = [];
 
-async function notifyActors(parentToken, parentAura) {
-  if (!isInFocus(parentToken.object.scene)) {
-    return;
+  for (const actor of actors) {
+    for (const item of actor.itemTypes.buff) {
+      const radius = item.getItemDictionaryFlag("radius");
+      if (radius === -1) {
+        childAuras.push(item);
+      } else if (
+        radius > -1 &&
+        (item.system.active || item.hasItemBooleanFlag("shareInactive")) &&
+        canShareAura(actor, item)
+      ) {
+        parentAuras.push(item);
+      }
+    }
   }
 
-  const auraActor = parentAura.actor;
-  const radius = parentAura.getItemDictionaryFlag("radius");
-  const tokensInAura = parentToken.object.scene.tokens.filter(
-    (t) => primaryUpdater(t.actor) === game.user && radius >= measureTokenDistance(t, parentToken)
-  );
-
-  const affectedActors = new Set(tokensInAura.flatMap((t) => t.actor ?? []));
-
-  const origin = { actor: auraActor, token: parentToken };
-  for (const actor of affectedActors) {
-    // TODO
-    console.warn(actor);
-  }
+  return { parentAuras, childAuras };
 }
 
 function measureTokenDistance(a, b) {
-  const gs = canvas.dimensions.size;
+  const { size: gs, distance: gd } = canvas.dimensions;
+
+  const aReal = a.movement.destination;
+  const bReal = b.movement.destination;
 
   // get min x distance between the two
-  let ax = a.x;
-  let bx = b.x;
-  if (ax + a.width * gs <= bx) {
-    ax += (a.width - 1) * gs;
-  } else if (ax >= bx + b.width * gs) {
-    bx += (b.width - 1) * gs;
+  let ax = aReal.x;
+  let bx = bReal.x;
+  if (ax + aReal.width * gs <= bx) {
+    ax += (aReal.width - 1) * gs;
+  } else if (ax >= bx + bReal.width * gs) {
+    bx += (bReal.width - 1) * gs;
   } else {
     bx = ax;
   }
 
   // get min y distance between the two
-  let ay = a.y;
-  let by = b.y;
-  if (ay + a.height * gs <= by) {
-    ay += (a.height - 1) * gs;
-  } else if (ay >= by + b.height * gs) {
-    by += (b.height - 1) * gs;
+  let ay = aReal.y;
+  let by = bReal.y;
+  if (ay + aReal.height * gs <= by) {
+    ay += (aReal.height - 1) * gs;
+  } else if (ay >= by + bReal.height * gs) {
+    by += (bReal.height - 1) * gs;
   } else {
     by = ay;
   }
 
+  // get the z distance between the two
+  let az = aReal.elevation;
+  let bz = bReal.elevation;
+  if (az + Math.max(aReal.width, aReal.height) * gd <= bz) {
+    az += (Math.max(aReal.width, aReal.height) - 1) * gd;
+  } else if (az >= bz + Math.max(bReal.width, bReal.height) * gd) {
+    bz += (Math.max(bReal.width, bReal.height) - 1) * gd;
+  } else {
+    bz = az;
+  }
+
   // they overlap so distance is 0
-  if (ax === bx && ay === by) {
+  if (ax === bx && ay === by && az === bz) {
     return 0;
   }
 
   return canvas.grid.measurePath([
-    { x: ax, y: ay },
-    { x: bx, y: by },
+    { x: ax, y: ay, elevation: az },
+    { x: bx, y: by, elevation: bz },
   ]).distance;
 }
 
-function generateChildAura(activeActor, parentAura) {
+function generateChildAura(parentAura) {
+  const parentActor = parentAura.actor;
   const newAura = parentAura.toObject();
 
   // replaces @ references to parent rollData with their current values
-  const rollData = activeActor.getRollData();
+  const rollData = parentActor.getRollData();
   newAura.system.changes.forEach((c) => {
     c.formula = Roll.replaceFormulaData(c.formula, rollData);
   });
@@ -124,16 +222,16 @@ function generateChildAura(activeActor, parentAura) {
     newAura.system.duration.value = Roll.replaceFormulaData(newAura.system.duration.value, rollData);
   }
 
-  newAura.flags.aurashare = { parentAuraId: parentAura.id };
-  newAura.name = parentAura.name + " (" + activeActor.name + ")";
-  newAura.system.identifiedName = parentAura.name + " (" + activeActor.name + ")";
+  newAura.flags[MODULE] = { [PARENT_FLAG]: parentAura.id };
+  newAura.name = parentAura.name + " (" + parentActor.name + ")";
+  newAura.system.identifiedName = parentAura.name + " (" + parentActor.name + ")";
   newAura.system.flags.dictionary.radius = -1;
   newAura.system.active = true;
   newAura.system.buffType = "temp";
   return newAura;
 }
 
-function validateDisposition(childToken, parentToken, aura) {
+function validateDisposition(parentToken, childToken, aura) {
   // everyone
   if (aura.hasItemBooleanFlag("shareAll")) {
     return true;
@@ -180,7 +278,6 @@ function dieHardCheck(actor) {
   return !!actor.items.getName("Diehard") || hasDiehardKey;
 }
 
-// TODO what to do with this?
 function primaryUpdater(actor) {
   // 1. The first active GM, sorted by ID
   const { activeGM } = game.users;
@@ -201,14 +298,6 @@ function primaryUpdater(actor) {
     .sort((a, b) => (a.id > b.id ? 1 : -1))
     .shift();
   return firstUpdater ?? null;
-}
-
-function animation(tokenObj) {
-  return (
-    tokenObj?.animationContexts.get(tokenObj.animationName)?.promise ??
-    tokenObj?.animationContexts.get(tokenObj.movementAnimationName)?.promise ??
-    null
-  );
 }
 
 function canHaveAuras(scene) {

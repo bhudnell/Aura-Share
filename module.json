@@ -27,16 +27,10 @@
   ],
 
   "compatibility": {
-    "minimum": "12",
+    "minimum": "13",
     "verified": "13.351"
   },
   "relationships": {
-    "requires": [
-      {
-        "id": "lib-wrapper",
-        "type": "module"
-      }
-    ],
     "systems": [
       {
         "id": "pf1",

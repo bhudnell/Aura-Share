@@ -7,7 +7,6 @@
     "DeleteAuras": "Delete Auras",
     "DeleteAurasHint": "Should auras be deleted when an actor is out of range? (If not, they get deactivated)",
     "ShareZero": "Share at 0 HP",
-    "ShareZeroHint": "Should auras be shared by an actor with exactly 0 HP? Disabling this will require -1 HP to disable the aura.",
-    "LibWrapperError": "The Aura Share module requires the 'libWrapper' module. Please install and activate it."
+    "ShareZeroHint": "Should auras be shared by an actor with exactly 0 HP? Disabling this will require -1 HP to disable the aura."
   }
 }
