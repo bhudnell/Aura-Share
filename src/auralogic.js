@@ -98,12 +98,26 @@ export const checkAuras = foundry.utils.debounce(async function (scene) {
     }
 
     // update the actors -> delete then create
-    await Promise.all(
-      Array.from(aurasToDelete, ([actorUuid, itemIds]) => {
-        const actor = fromUuidSync(actorUuid);
-        return actor.deleteEmbeddedDocuments("Item", [...itemIds]);
-      })
-    );
+    if (game.settings.get("aurashare", "DeleteAuras")) {
+      await Promise.all(
+        Array.from(aurasToDelete, ([actorUuid, itemIds]) => {
+          const actor = fromUuidSync(actorUuid);
+          return actor.deleteEmbeddedDocuments("Item", [...itemIds]);
+        })
+      );
+    } else {
+      await Promise.all(
+        Array.from(aurasToDelete, ([actorUuid, itemIds]) => {
+          const actor = fromUuidSync(actorUuid);
+          return Promise.all(
+            [...itemIds].map((itemId) => {
+              const item = actor.items.get(itemId);
+              return item.setActive(false);
+            })
+          );
+        })
+      );
+    }
 
     await Promise.all(
       Array.from(aurasToCreate, ([actorUuid, parentIds]) => {

@@ -5,6 +5,7 @@ export class Settings {
       hint: game.i18n.localize("AuraShare.DiehardHint"),
       scope: "world",
       config: true,
+      requiresReload: true,
       type: Boolean,
       default: true,
     });
@@ -13,8 +14,9 @@ export class Settings {
       hint: game.i18n.localize("AuraShare.UnconsciousAurasHint"),
       scope: "world",
       config: true,
+      requiresReload: true,
       type: Boolean,
-      default: true,
+      default: false,
     });
     game.settings.register("aurashare", "DeleteAuras", {
       name: game.i18n.localize("AuraShare.DeleteAuras"),
@@ -29,6 +31,7 @@ export class Settings {
       hint: game.i18n.localize("AuraShare.ShareZeroHint"),
       scope: "world",
       config: true,
+      requiresReload: true,
       type: Boolean,
       default: true,
     });
