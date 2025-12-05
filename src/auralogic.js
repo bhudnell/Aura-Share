@@ -1,5 +1,4 @@
-const MODULE = "aurashare";
-const PARENT_FLAG = "parentAuraId";
+import { MODULE, OPTIONS_FLAG, PARENT_AURA_FLAG, RADIUS_FLAG } from "./config.mjs";
 
 let auraCheckLock = Promise.resolve();
 
@@ -32,7 +31,7 @@ export const checkAuras = foundry.utils.debounce(async function (scene) {
     for (const childAura of childAuras) {
       const childActor = childAura.actor;
 
-      const parentAuraId = childAura.getFlag(MODULE, PARENT_FLAG);
+      const parentAuraId = childAura.getFlag(MODULE, PARENT_AURA_FLAG);
       if (!parentAuraId) {
         // orphaned child aura → delete it
         if (!aurasToDelete.has(childActor.uuid)) {
@@ -76,7 +75,7 @@ export const checkAuras = foundry.utils.debounce(async function (scene) {
         const inRange = actorsInRange(parentActor, targetActor, parentAura);
 
         const existingChild = targetActor.itemTypes.buff.find(
-          (i) => i.getItemDictionaryFlag("radius") === -1 && i.getFlag(MODULE, PARENT_FLAG) === parentAura.id
+          (i) => i.getFlag(MODULE, RADIUS_FLAG) === -1 && i.getFlag(MODULE, PARENT_AURA_FLAG) === parentAura.id
         );
 
         if (inRange && !existingChild) {
@@ -134,7 +133,7 @@ export const checkAuras = foundry.utils.debounce(async function (scene) {
 function actorsInRange(parentActor, targetActor, aura) {
   const parentTokens = parentActor.getActiveTokens();
   const targetTokens = targetActor.getActiveTokens();
-  const radius = aura.getItemDictionaryFlag("radius");
+  const radius = aura.getFlag(MODULE, RADIUS_FLAG);
 
   if (!parentTokens.length || !targetTokens.length) {
     return false;
@@ -151,18 +150,22 @@ function actorsInRange(parentActor, targetActor, aura) {
   return false;
 }
 
+function auraOptions(item) {
+  return item.getFlag(MODULE, OPTIONS_FLAG) ?? [];
+}
+
 function collectAllAuras(actors) {
   const parentAuras = [];
   const childAuras = [];
 
   for (const actor of actors) {
     for (const item of actor.itemTypes.buff) {
-      const radius = item.getItemDictionaryFlag("radius");
+      const radius = item.getFlag(MODULE, RADIUS_FLAG);
       if (radius === -1) {
         childAuras.push(item);
       } else if (
         radius > -1 &&
-        (item.system.active || item.hasItemBooleanFlag("shareInactive")) &&
+        (item.system.active || auraOptions(item).includes("shareInactive")) &&
         canShareAura(actor, item)
       ) {
         parentAuras.push(item);
@@ -236,10 +239,9 @@ function generateChildAura(parentAura) {
     newAura.system.duration.value = Roll.replaceFormulaData(newAura.system.duration.value, rollData);
   }
 
-  newAura.flags[MODULE] = { [PARENT_FLAG]: parentAura.id };
+  newAura.flags[MODULE] = { [PARENT_AURA_FLAG]: parentAura.id, [RADIUS_FLAG]: -1 };
   newAura.name = parentAura.name + " (" + parentActor.name + ")";
   newAura.system.identifiedName = parentAura.name + " (" + parentActor.name + ")";
-  newAura.system.flags.dictionary.radius = -1;
   newAura.system.active = true;
   newAura.system.buffType = "temp";
   return newAura;
@@ -247,18 +249,18 @@ function generateChildAura(parentAura) {
 
 function validateDisposition(parentToken, childToken, aura) {
   // everyone
-  if (aura.hasItemBooleanFlag("shareAll")) {
+  if (auraOptions(aura).includes("shareAll")) {
     return true;
   }
 
   // neutral
   const childTokenDisposition = childToken.disposition;
-  if (aura.hasItemBooleanFlag("shareNeutral") && childTokenDisposition === 0) {
+  if (auraOptions(aura).includes("shareNeutral") && childTokenDisposition === 0) {
     return true;
   }
 
   const parentTokenDisposition = parentToken.disposition;
-  const hostileAura = aura.hasItemBooleanFlag("shareEnemies");
+  const hostileAura = auraOptions(aura).includes("shareEnemies");
   //Enemies
   if (hostileAura) {
     return parentTokenDisposition === -childTokenDisposition;
@@ -268,7 +270,7 @@ function validateDisposition(parentToken, childToken, aura) {
 }
 
 function canShareAura(actor, aura) {
-  if (aura.hasItemBooleanFlag("shareUnconscious")) {
+  if (auraOptions(aura).includes("shareUnconscious")) {
     return true;
   }
   if (game.settings.get("aurashare", "UnconsciousAuras")) {

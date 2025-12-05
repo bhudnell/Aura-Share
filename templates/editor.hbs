@@ -1,0 +1,28 @@
+<h3 class="form-header"><i class="ra ra-aura"></i> {{localize 'AuraShare.Sheet.Title'}}</h3>
+
+<div class="form-group">
+  <label>{{localize 'AuraShare.Sheet.Radius'}}</label>
+  <div class="form-fields">
+    {{numberInput radius class="aura-share-radius"}}
+  </div>
+</div>
+
+<div class="form-group">
+  <label>{{localize "AuraShare.Sheet.Flags.Label"}}</label>
+  <div class="form-fields">
+    <ul class="traits-list tag-list">
+      {{#each flags}}
+      <li class="tag">{{ this }}</li>
+      {{/each}}
+    </ul>
+    <a
+      class="trait-selector aura-share-flag-selector"
+      data-title="AuraShare.Sheet.Flags.Label"
+      data-options="auraShareFlagLabels"
+      data-for="{{ flagDataPath }}"
+      data-has-custom="false"
+    >
+      <i class="fas fa-pen-to-square"></i>
+    </a>
+  </div>
+</div>

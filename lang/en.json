@@ -1,12 +1,26 @@
 {
   "AuraShare": {
-    "Diehard": "Diehard",
-    "DiehardHint": "Should actors with \"Diehard\" continue to share auras when at or below 0 HP?",
-    "UnconsciousAuras": "Unconscious Auras",
-    "UnconsciousAurasHint": "Should all actors continue to share auras when at or below 0 HP? (Overrides the Diehard setting)",
-    "DeleteAuras": "Delete Auras",
-    "DeleteAurasHint": "Should auras be deleted when an actor is out of range? (If not, they get deactivated)",
-    "ShareZero": "Share at 0 HP",
-    "ShareZeroHint": "Should auras be shared by an actor with exactly 0 HP? Disabling this will require -1 HP to disable the aura."
+    "Settings": {
+      "Diehard": "Diehard",
+      "DiehardHint": "Should actors with \"Diehard\" continue to share auras when at or below 0 HP?",
+      "UnconsciousAuras": "Unconscious Auras",
+      "UnconsciousAurasHint": "Should all actors continue to share auras when at or below 0 HP? (Overrides the Diehard setting)",
+      "DeleteAuras": "Delete Auras",
+      "DeleteAurasHint": "Should auras be deleted when an actor is out of range? (If not, they get deactivated)",
+      "ShareZero": "Share at 0 HP",
+      "ShareZeroHint": "Should auras be shared by an actor with exactly 0 HP? Disabling this will require -1 HP to disable the aura."
+    },
+    "Sheet": {
+      "Title": "Aura Sharing",
+      "Radius": "Aura Radius",
+      "Flags": {
+        "Label": "Aura Options",
+        "ShareInactive": "Share Inactive",
+        "ShareHostile": "Share Hostile",
+        "ShareNeutral": "Share Neutral",
+        "ShareAll": "Share All",
+        "ShareUnconscious": "Share Unconscious"
+      }
+    }
   }
 }

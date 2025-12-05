@@ -15,6 +15,7 @@ export default [
       sourceType: "module",
       globals: {
         ...globals.browser,
+        pf1: "readonly",
         canvas: "readonly",
         foundry: "readonly",
         CONST: "readonly",
@@ -22,6 +23,7 @@ export default [
         Hooks: "readonly",
         Roll: "readonly",
         fromUuidSync: "readonly",
+        renderTemplate: "readonly",
       },
     },
     rules: {

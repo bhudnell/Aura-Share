@@ -1,11 +1,30 @@
 import { checkAuras } from "./auralogic.js";
+import { flagLabels } from "./config.mjs";
+import { migrate } from "./migration.mjs";
+import { renderItemSheetAuraEditor } from "./renderItemSheetAuraEditor.mjs";
 import { Settings } from "./settings.js";
-
-const checkAurasPromisified = (scene) => Promise.resolve().then(() => checkAuras(scene));
 
 Hooks.once("i18nInit", () => {
   Settings.registerSettings();
+
+  // translate these object keys
+  for (const key of Object.keys(flagLabels)) {
+    flagLabels[key] = game.i18n.localize(flagLabels[key]);
+  }
 });
+
+Hooks.once("init", () => {
+  pf1.config.auraShareFlagLabels = flagLabels;
+});
+
+Hooks.once("pf1PostReady", () => migrate());
+
+Hooks.on("renderItemSheetPF", renderItemSheetAuraEditor);
+
+/**
+ * CHECK AURA TRIGGER STUFF BELOW
+ */
+const checkAurasPromisified = (scene) => Promise.resolve().then(() => checkAuras(scene));
 
 // check auras when actor health changes
 Hooks.on("updateActor", (actor, update, _options, _userId) => {
@@ -60,8 +79,3 @@ Hooks.on("preDeleteItem", (item, _options, _userId) => {
     checkAurasPromisified(item.actor.getActiveTokens()[0]?.scene);
   }
 });
-
-/**
- * TODOS:
- * go away from system flags and use foundry flags with a UI (stretch goal)
- */

@@ -21,10 +21,10 @@ Aura Share: Automates the sharing of buffs between tokens. This makes handling a
 - shareNeutral </br> <sub>flag type: Boolean </br> shares the buff with targets with neutral disposition. <br></sub> <br>
 - shareAll </br> <sub>flag type: Boolean </br> shares the buff with everyone regardless of disposition. <br></sub> <br>
 - shareUnconscious </br><sub>flag type: Boolean </br> shares the buff even if you're unconscious. (This works like the Diehard feat, but allows DMs more control over individual auras.) <br></sub> <br>
-<sub><strong>note: these are case sensitive.</strong></sub> <br>
+  <sub><strong>note: these are case sensitive.</strong></sub> <br>
   <br>
-Example:  <br>
-![image](https://i.imgur.com/zRj6ITb.png)
+  Example: <br>
+  ![image](https://i.imgur.com/zRj6ITb.png)
   <br>
   <br>
   <br>
