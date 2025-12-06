@@ -1,89 +1,81 @@
-import { AuraLogic } from "./auralogic.js";
+import { checkAuras } from "./auralogic.js";
+import { flagLabels } from "./config.mjs";
+import { migrate } from "./migration.mjs";
+import { renderItemSheetAuraEditor } from "./renderItemSheetAuraEditor.mjs";
 import { Settings } from "./settings.js";
-import { Utils } from "./utils.js";
-
-let sceneTokens = [];
-//to prevent over looping tokens are handled here.
 
 Hooks.once("i18nInit", () => {
   Settings.registerSettings();
-});
 
-Hooks.on("canvasInit", (_canvas) => {
-  if (Utils.shouldHandle()) {
-    sceneTokens.length = 0;
-    sceneTokens = Utils.createTokenArray();
+  // translate these object keys
+  for (const key of Object.keys(flagLabels)) {
+    flagLabels[key] = game.i18n.localize(flagLabels[key]);
   }
 });
 
-Hooks.on("canvasReady", (_canvas) => {
-  if (Utils.shouldHandle()) {
-    sceneTokens.length = 0;
-    sceneTokens = Utils.createTokenArray();
-  }
+Hooks.once("init", () => {
+  pf1.config.auraShareFlagLabels = flagLabels;
 });
 
-Hooks.on("canvasTeardown", (_canvas) => {
-  if (Utils.shouldHandle()) {
-    sceneTokens.length = 0;
-    return;
-  }
-});
+Hooks.once("pf1PostReady", () => migrate());
 
-Hooks.on("updateToken", (token, update, _options, _userId) => {
-  if (Utils.shouldHandle() && ("x" in update || "y" in update || "disposition" in update)) {
-    sceneTokens = Utils.createTokenArray();
-    AuraLogic.tradeAuras(token, sceneTokens, false);
-  }
-});
+Hooks.on("renderItemSheetPF", renderItemSheetAuraEditor);
 
+/**
+ * CHECK AURA TRIGGER STUFF BELOW
+ */
+const checkAurasPromisified = (scene) => Promise.resolve().then(() => checkAuras(scene));
+
+// check auras when actor health changes
 Hooks.on("updateActor", (actor, update, _options, _userId) => {
-  if (Utils.shouldHandle() && update.system?.attributes?.hp !== undefined) {
-    if (sceneTokens?.length < 1) {
-      sceneTokens.length = 0;
-      sceneTokens = Utils.createTokenArray();
-    }
-    let tokens = actor.getActiveTokens();
-    if (tokens?.length > 0) {
-      let token = tokens[0].document;
-      AuraLogic.tradeAuras(token, sceneTokens, false);
-    }
+  if (update.system?.attributes?.hp != null) {
+    checkAurasPromisified(actor.getActiveTokens()[0]?.scene);
   }
 });
 
-Hooks.on("preDeleteToken", (token, _options, _userId) => {
-  if (Utils.shouldHandle()) {
-    AuraLogic.clearInheritedAuras(token, sceneTokens);
-  }
+// check auras when token moves, token elevation changes, or scene loads
+Hooks.on("moveToken", (token, _movement, _operation, _user) => {
+  checkAurasPromisified(token.object.scene);
 });
 
-Hooks.on("deleteToken", (token, _options, _userId) => {
-  if (Utils.shouldHandle()) {
-    sceneTokens.length = 0;
-    sceneTokens = Utils.createTokenArray(token);
-  }
-});
-
+// check auras when token created
 Hooks.on("createToken", (token, _options, _userId) => {
-  if (Utils.shouldHandle()) {
-    if (!sceneTokens[0]) {
-      sceneTokens.length = 0;
-      sceneTokens = Utils.createTokenArray();
-    }
-    AuraLogic.tradeAuras(token, sceneTokens);
+  checkAurasPromisified(token.object.scene);
+});
+
+// check auras when disposition changes
+Hooks.on("updateToken", (token, update, _options, _userId) => {
+  if (update.disposition != null) {
+    checkAurasPromisified(token.object.scene);
   }
 });
 
-Hooks.on("pf1ToggleActorBuff", (actor, itemData) => {
-  if (Utils.shouldHandle() && itemData.getItemDictionaryFlag("radius") > 0) {
-    if (sceneTokens?.length < 1) {
-      sceneTokens.length = 0;
-      sceneTokens = Utils.createTokenArray();
-    }
-    let tokens = actor.getActiveTokens();
-    if (tokens?.length > 0) {
-      let token = tokens[0].document;
-      AuraLogic.tradeAuras(token, sceneTokens);
-    }
+// check auras when token deleted
+Hooks.on("preDeleteToken", (token, _options, _userId) => {
+  checkAurasPromisified(token.object.scene);
+});
+
+// check auras when parent aura is created
+Hooks.on("createItem", (item, _options, _userId) => {
+  if (item.actor && item.type === "buff" && item.getItemDictionaryFlag("radius") > -1) {
+    checkAurasPromisified(item.actor.getActiveTokens()[0]?.scene);
+  }
+});
+
+// check auras when aura radius changes or aura is toggled
+Hooks.on("updateItem", (item, update, _options, _userId) => {
+  if (
+    item.actor &&
+    item.type === "buff" &&
+    (update.system?.active != null || update.system?.flags?.dictionary?.radius != null)
+  ) {
+    checkAurasPromisified(item.actor.getActiveTokens()[0]?.scene);
+  }
+});
+
+// check auras when parent aura is deleted
+Hooks.on("preDeleteItem", (item, _options, _userId) => {
+  if (item.actor && item.type === "buff" && item.getItemDictionaryFlag("radius") > -1) {
+    checkAurasPromisified(item.actor.getActiveTokens()[0]?.scene);
   }
 });

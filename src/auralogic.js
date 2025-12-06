@@ -1,288 +1,336 @@
-//Synopsis: Copies aura buffs between actors in the Pathfinder 1.E system in FoundryVTT
-//
-//Create by:   Fiona Brightgrass
-//Date:         4/19/23
-//
-//Details:
-// If an actor has a buff in their buffs tab that ends with (Received)
-// It will clone it to all allies within the radius of the aura.
-// Allied gets a 0 radius copy of the aura, which can't be copied to others. (radius > 0 is the trigger)
-// The radius needs to be set as a dictionary flag in the buff itself, as follows:
-//        name       value
-//       radius        xx
+import { MODULE, OPTIONS_FLAG, PARENT_AURA_FLAG, RADIUS_FLAG } from "./config.mjs";
 
-export class AuraLogic {
-  //This is main the entry point from the hooks:
-  static async tradeAuras(ActiveToken, PassiveTokens) {
-    let Auras_ActiveToken = this.getAuras(ActiveToken, false);
-    Promise.all(
-      PassiveTokens.map(async (PassiveToken) => {
-        if (PassiveToken?.id !== ActiveToken?.id) {
-          let Auras_PassiveToken = this.getAuras(PassiveToken, false);
-          if (Auras_ActiveToken?.length > 0) {
-            //Active Token -> Inactive
-            this.updateAuraData(ActiveToken, Auras_ActiveToken, PassiveToken);
-          }
-          if (Auras_PassiveToken?.length > 0) {
-            //Inactive Token -> Active
-            this.updateAuraData(PassiveToken, Auras_PassiveToken, ActiveToken);
-          }
-        }
-      })
-    );
+let auraCheckLock = Promise.resolve();
+
+export const checkAuras = foundry.utils.debounce(async function (scene) {
+  if (!(canvas.ready && isInFocus(scene) && canHaveAuras(scene))) {
     return;
   }
 
-  //This is the secondary entry point from the hooks that removes all auras with a radius of -1:
-  //forceRemoveAuras only fires just before token deletion:
-  static async clearInheritedAuras(token) {
-    let aurasToRemove = this.getAuras(token, true);
-    if (aurasToRemove?.length > 0) {
-      if (game.settings.get("aurashare", "DeleteAuras")) {
-        this.deleteAuras(aurasToRemove, token);
-      } else {
-        this.deactivateAuras(aurasToRemove, token);
+  await auraCheckLock;
+  const lock = { release: () => {} };
+  auraCheckLock = new Promise((resolve) => {
+    lock.release = resolve;
+  });
+
+  try {
+    const actors = new Set(
+      scene.tokens.contents.flatMap((t) => (primaryUpdater(t.actor) === game.user ? t.actor : []))
+    );
+
+    // parentAuras: {aura, radius}[], childAuras: aura[]
+    const { parentAuras, childAuras } = collectAllAuras(actors);
+
+    // Maps: actorUuid -> Set(itemUuid)
+    const aurasToDelete = new Map();
+    const aurasToCreate = new Map();
+
+    // Index parent auras by ID for quick lookup
+    const parentAurasByUuid = new Map(parentAuras.map((a) => [a.aura.uuid, a]));
+
+    // cleanup child auras
+    for (const childAura of childAuras) {
+      const childActor = childAura.actor;
+
+      const parentAuraUuid = childAura.getFlag(MODULE, PARENT_AURA_FLAG);
+      if (!parentAuraUuid) {
+        // orphaned child aura → delete it
+        if (!aurasToDelete.has(childActor.uuid)) {
+          aurasToDelete.set(childActor.uuid, new Set());
+        }
+        aurasToDelete.get(childActor.uuid).add(childAura.uuid);
+        continue;
+      }
+
+      const { aura: parentAura, radius: parentRadius } = parentAurasByUuid.get(parentAuraUuid) ?? {};
+      if (!parentAura) {
+        // parent no longer exists → delete child
+        if (!aurasToDelete.has(childActor.uuid)) {
+          aurasToDelete.set(childActor.uuid, new Set());
+        }
+        aurasToDelete.get(childActor.uuid).add(childAura.uuid);
+        continue;
+      }
+
+      const parentActor = parentAura.actor;
+
+      const parentAuraOptions = parentAura.getFlag(MODULE, OPTIONS_FLAG) ?? [];
+      const stillInRange = actorsInRange(parentActor, childActor, parentRadius, parentAuraOptions);
+      if (!stillInRange) {
+        if (!aurasToDelete.has(childActor.uuid)) {
+          aurasToDelete.set(childActor.uuid, new Set());
+        }
+        aurasToDelete.get(childActor.uuid).add(childAura.uuid);
       }
     }
-    return;
-  }
 
-  static async updateAuraData(activeToken, parentAuras, inactiveToken) {
-    let distance = this.measureTokenDistance(activeToken.toObject(), inactiveToken.toObject());
-    let aurasToSync = [];
-    let aurasToRemove = [];
-    let activeActor = activeToken.actor;
-    //Make lists of Add/Remove auras
-    if (parentAuras?.length > 0 && distance != null) {
-      Promise.all(
-        parentAuras.map(async (parentAura) => {
-          let newAura = this.generateChildAura(activeActor, parentAura);
-          let shareIfInactive = this.getInactiveShareFlag(parentAura);
-          if (
-            this.validateLifeform(activeActor) &&
-            parseInt(parentAura.system.flags.dictionary.radius) >= distance &&
-            (parentAura.system.active || shareIfInactive)
-          ) {
-            if (this.validateDisposition(activeToken, inactiveToken, parentAura)) {
-              //             alive?             && aura applicable (range, etc) THIS NEEDS TO BE REWORKED
-              aurasToSync.push(newAura);
-            }
-          } else {
-            aurasToRemove.push(newAura);
+    // create child auras for each parent aura
+    for (const { aura: parentAura, radius: parentRadius } of parentAuras) {
+      const parentActor = parentAura.actor;
+      const parentAuraOptions = parentAura.getFlag(MODULE, OPTIONS_FLAG) ?? [];
+
+      // All other actors
+      for (const targetActor of actors) {
+        if (targetActor.uuid === parentActor.uuid) {
+          continue;
+        }
+
+        const inRange = actorsInRange(parentActor, targetActor, parentRadius, parentAuraOptions);
+
+        const existingChild = targetActor.itemTypes.buff.find(
+          (i) => i.getFlag(MODULE, PARENT_AURA_FLAG) === parentAura.uuid
+        );
+
+        if (inRange && !existingChild) {
+          // Need to create child aura
+          if (!aurasToCreate.has(targetActor.uuid)) {
+            aurasToCreate.set(targetActor.uuid, new Set());
           }
+          aurasToCreate.get(targetActor.uuid).add(parentAura.uuid);
+        }
+
+        if (!inRange && existingChild) {
+          // Need to delete child aura
+          if (!aurasToDelete.has(targetActor.uuid)) {
+            aurasToDelete.set(targetActor.uuid, new Set());
+          }
+          aurasToDelete.get(targetActor.uuid).add(existingChild.uuid);
+        }
+      }
+    }
+
+    // update the actors -> delete then create
+    if (game.settings.get("aurashare", "DeleteAuras")) {
+      await Promise.all(
+        Array.from(aurasToDelete, ([actorUuid, itemUuids]) => {
+          const actor = fromUuidSync(actorUuid);
+          return actor.deleteEmbeddedDocuments(
+            "Item",
+            [...itemUuids].map((uuid) => uuid.slice(uuid.lastIndexOf(".") + 1))
+          );
+        })
+      );
+    } else {
+      await Promise.all(
+        Array.from(aurasToDelete, ([actorUuid, itemUuids]) => {
+          const actor = fromUuidSync(actorUuid);
+          return Promise.all(
+            [...itemUuids].map((uuid) => {
+              const itemId = uuid.slice(uuid.lastIndexOf(".") + 1);
+              const item = actor.items.get(itemId);
+              return item.setActive(false);
+            })
+          );
         })
       );
     }
-    //Add:
-    if (aurasToSync.length > 0) {
-      let inactiveActor = inactiveToken.actor;
-      let newAuras = [];
-      Promise.all(
-        aurasToSync.map(async (aura) => {
-          let childAura = inactiveActor.items?.getName(aura.name);
-          if (!childAura) {
-            newAuras.push(aura);
-          } else {
-            childAura.setActive(true);
-          }
-        })
-      );
-      if (newAuras.length > 0) {
-        inactiveToken.actor.createEmbeddedDocuments("Item", newAuras);
-      }
-    }
-    //Remove
-    if (aurasToRemove.length > 0) {
-      if (game.settings.get("aurashare", "DeleteAuras")) {
-        this.deleteAuras(aurasToRemove, inactiveToken);
-      } else {
-        this.deactivateAuras(aurasToRemove, inactiveToken);
-      }
-    }
-    return;
-  }
 
-  static getAuras(token, getInheritedAuras) {
-    //will filter for parent/child auras automatically using the booleon getParentAuras flag:
-    let auras = [];
-    let auraActor = token.actor;
-    //Check to see if the actor has a buff with a flag and then calculate auras.
-    if (auraActor.itemTypes.buff.length > 0) {
-      if (getInheritedAuras) {
-        auras = auraActor.items?.filter((o) => o.system?.flags?.dictionary?.radius === -1);
-      } else {
-        auras = auraActor.items?.filter((o) => o.system?.flags?.dictionary?.radius >= 0);
-        //Auras with a radius greater or equal to 0 share.
-      }
-    }
-    return auras;
-  }
-
-  static deleteAuras(auras, inactiveToken) {
-    let inactiveActor = inactiveToken.actor;
-    let auraIDsToDelete = [];
-    //we're making an array containing aura objects, but only if the name matches an existing aura.
-    Promise.all(
-      auras.map(async (aura) => {
-        let foundAura = inactiveActor.items.getName(aura.name) ?? inactiveActor.getEmbeddedDocument("Item", aura._id);
-        if (foundAura) {
-          auraIDsToDelete.push(foundAura._id);
-        }
+    await Promise.all(
+      Array.from(aurasToCreate, ([actorUuid, parentUuids]) => {
+        const actor = fromUuidSync(actorUuid);
+        const itemsToCreate = [...parentUuids].map((uuid) => generateChildAura(parentAurasByUuid.get(uuid).aura));
+        return actor.createEmbeddedDocuments("Item", itemsToCreate);
       })
     );
-    if (auraIDsToDelete?.length > 0) {
-      inactiveToken.actor.deleteEmbeddedDocuments("Item", auraIDsToDelete);
-      //remove the aura documents from the actor
-    }
-    return;
+  } finally {
+    lock.release();
+  }
+}, 100);
+
+function actorsInRange(parentActor, targetActor, radius, auraOptions) {
+  const parentTokens = parentActor.getActiveTokens();
+  const targetTokens = targetActor.getActiveTokens();
+
+  if (!parentTokens.length || !targetTokens.length) {
+    return false;
   }
 
-  static deactivateAuras(auras, inactiveToken) {
-    //Unchecks the "activate" box, basically.
-    let inactiveActor = inactiveToken.actor;
-    Promise.all(
-      auras.map(async (aura) => {
-        let foundAura = inactiveActor.items?.getName(aura.name);
-        if (foundAura) {
-          foundAura.setActive(false);
-        }
-      })
-    );
-    return;
-  }
-
-  static generateChildAura(activeActor, parentAura) {
-    //Converts aura data into child aura data.
-    let newAura = activeActor.getEmbeddedDocument("Item", parentAura._id).toObject();
-    // replaces @ references to parent rollData with their current values
-    const rollData = activeActor.getRollData();
-    newAura.system.changes.forEach((c) => {
-      c.formula = Roll.replaceFormulaData(c.formula, rollData);
-    });
-    if (newAura.system.duration.value) {
-      newAura.system.duration.value = Roll.replaceFormulaData(newAura.system.duration.value, rollData);
-    }
-
-    newAura.name = parentAura.name + " (" + activeActor.name + ")";
-    newAura.system.identifiedName = parentAura.name + " (" + activeActor.name + ")";
-    newAura.system.flags.dictionary.radius = -1;
-    newAura.system.active = true;
-    newAura.system.buffType = "temp";
-    return newAura;
-  }
-
-  static validateAura(parentAura, activeToken, activeActor, inactiveToken) {
-    //check a bunch of conditionas if an aura can be shared
-    let shareIfInactive = this.getInactiveShareFlag(parentAura);
-    let correctDisposition = this.validateDisposition(activeToken, inactiveToken, parentAura) ?? true;
-    return (
-      (parentAura.system.active || shareIfInactive) &&
-      this.validateLifeform(activeActor, parentAura) &&
-      correctDisposition
-    );
-  }
-
-  static validateDisposition(activeToken, inactiveToken, aura) {
-    //Checks if the aura can be shared based on flags and disposition.
-    let activeTokenDisposition = activeToken.disposition;
-    let inactiveTokenDisposition = inactiveToken.disposition;
-    let hostileAura = aura.hasItemBooleanFlag("shareEnemies");
-    //Everyone
-    if (aura.hasItemBooleanFlag("shareAll")) {
-      return true;
-    }
-    //Neutral
-    if (aura.hasItemBooleanFlag("shareNeutral") && inactiveTokenDisposition === 0) {
-      return true;
-    }
-    //Enemies
-    if (hostileAura) {
-      if (activeTokenDisposition === inactiveTokenDisposition * -1) {
+  for (const pt of parentTokens) {
+    for (const tt of targetTokens) {
+      const d = measureTokenDistance(pt.document, tt.document);
+      if (d <= radius && validateDisposition(pt.document, tt.document, auraOptions)) {
         return true;
       }
     }
-    //Allies
-    else {
-      if (activeTokenDisposition === inactiveTokenDisposition) {
-        return true;
+  }
+  return false;
+}
+
+function collectAllAuras(actors) {
+  const parentAuras = [];
+  const childAuras = [];
+
+  for (const actor of actors) {
+    for (const item of actor.itemTypes.buff) {
+      const radius = item.getFlag(MODULE, RADIUS_FLAG);
+      const parentAuraUuid = item.getFlag(MODULE, PARENT_AURA_FLAG);
+      if (radius == null && parentAuraUuid == null) {
+        continue;
+      }
+
+      if (parentAuraUuid) {
+        childAuras.push(item);
+        continue;
+      }
+
+      const auraOptions = item.getFlag(MODULE, OPTIONS_FLAG) ?? [];
+      if ((item.system.active || auraOptions.includes("shareInactive")) && canShareAura(actor, auraOptions)) {
+        const evaluated = pf1.dice.RollPF.safeRollSync(radius != null ? `${radius}` : "0", item.getRollData(), MODULE);
+        if (!evaluated.err) {
+          parentAuras.push({ aura: item, radius: evaluated.total });
+        }
       }
     }
+  }
+
+  return { parentAuras, childAuras };
+}
+
+function measureTokenDistance(a, b) {
+  const { size: gs, distance: gd } = canvas.dimensions;
+
+  const aReal = a.movement.destination;
+  const bReal = b.movement.destination;
+
+  // get min x distance between the two
+  let ax = aReal.x;
+  let bx = bReal.x;
+  if (ax + aReal.width * gs <= bx) {
+    ax += (aReal.width - 1) * gs;
+  } else if (ax >= bx + bReal.width * gs) {
+    bx += (bReal.width - 1) * gs;
+  } else {
+    bx = ax;
+  }
+
+  // get min y distance between the two
+  let ay = aReal.y;
+  let by = bReal.y;
+  if (ay + aReal.height * gs <= by) {
+    ay += (aReal.height - 1) * gs;
+  } else if (ay >= by + bReal.height * gs) {
+    by += (bReal.height - 1) * gs;
+  } else {
+    by = ay;
+  }
+
+  // get the z distance between the two
+  let az = aReal.elevation;
+  let bz = bReal.elevation;
+  if (az + Math.max(aReal.width, aReal.height) * gd <= bz) {
+    az += (Math.max(aReal.width, aReal.height) - 1) * gd;
+  } else if (az >= bz + Math.max(bReal.width, bReal.height) * gd) {
+    bz += (Math.max(bReal.width, bReal.height) - 1) * gd;
+  } else {
+    bz = az;
+  }
+
+  // they overlap so distance is 0
+  if (ax === bx && ay === by && az === bz) {
+    return 0;
+  }
+
+  return canvas.grid.measurePath([
+    { x: ax, y: ay, elevation: az },
+    { x: bx, y: by, elevation: bz },
+  ]).distance;
+}
+
+function generateChildAura(parentAura) {
+  const parentActor = parentAura.actor;
+  const newAura = parentAura.toObject();
+
+  // replaces @ references to parent rollData with their current values
+  const rollData = parentAura.getRollData();
+  newAura.system.changes.forEach((c) => {
+    c.formula = Roll.replaceFormulaData(c.formula, rollData);
+  });
+  if (newAura.system.duration.value) {
+    newAura.system.duration.value = Roll.replaceFormulaData(newAura.system.duration.value, rollData);
+  }
+
+  newAura.flags[MODULE] = { [PARENT_AURA_FLAG]: parentAura.uuid };
+  newAura.name = parentAura.name + " (" + parentActor.name + ")";
+  newAura.system.identifiedName = parentAura.name + " (" + parentActor.name + ")";
+  newAura.system.active = true;
+  newAura.system.subType = "temp";
+  return newAura;
+}
+
+function validateDisposition(parentToken, childToken, auraOptions) {
+  // everyone
+  if (auraOptions.includes("shareAll")) {
+    return true;
+  }
+
+  // neutral
+  const childTokenDisposition = childToken.disposition;
+  if (auraOptions.includes("shareNeutral") && childTokenDisposition === 0) {
+    return true;
+  }
+
+  const parentTokenDisposition = parentToken.disposition;
+  const hostileAura = auraOptions.includes("shareEnemies");
+  //Enemies
+  if (hostileAura) {
+    return parentTokenDisposition === -childTokenDisposition;
+  }
+  //Allies
+  return parentTokenDisposition === childTokenDisposition;
+}
+
+function canShareAura(actor, auraOptions) {
+  if (auraOptions.includes("shareUnconscious")) {
+    return true;
+  }
+  if (game.settings.get("aurashare", "UnconsciousAuras")) {
+    return true;
+  }
+
+  const shareThreshold = game.settings.get("aurashare", "ShareZero") ? 0 : 1;
+  const hp = actor.system.attributes.hp.value;
+  return hp >= shareThreshold || dieHardCheck(actor);
+}
+
+function dieHardCheck(actor) {
+  const diehardEnabled = game.settings.get("aurashare", "Diehard");
+  if (!diehardEnabled) {
     return false;
   }
 
-  static measureTokenDistance(a, b) {
-    const gs = canvas.dimensions.size;
+  const hasDiehardKey = !!actor.items.find(
+    (i) => (i._stats.compendiumSource ?? i.flags.core?.sourceId) === "Compendium.pf1.feats.Item.O0e0UCim27GPKFuW"
+  );
+  return !!actor.items.getName("Diehard") || hasDiehardKey;
+}
 
-    // get min x distance between the two
-    let ax = a.x;
-    let bx = b.x;
-    if (a.x + a.width * gs <= b.x) {
-      ax += (a.width - 1) * gs;
-    } else if (a.x >= b.x + b.width * gs) {
-      bx += (b.width - 1) * gs;
-    } else {
-      bx = ax;
-    }
-
-    // get min y distance between the two
-    let ay = a.y;
-    let by = b.y;
-    if (a.y + a.height * gs <= b.y) {
-      ay += (a.height - 1) * gs;
-    } else if (a.y >= b.y + b.height * gs) {
-      by += (b.height - 1) * gs;
-    } else {
-      by = ay;
-    }
-
-    // they overlap so distance is 0
-    if (ax === bx && ay === by) {
-      return 0;
-    }
-
-    return canvas.grid.measurePath([
-      { x: ax, y: ay },
-      { x: bx, y: by },
-    ]).distance;
+function primaryUpdater(actor) {
+  // 1. The first active GM, sorted by ID
+  const { activeGM } = game.users;
+  if (activeGM) {
+    return activeGM;
   }
 
-  static validateLifeform(actor, aura) {
-    //Bzzztttt check the scanner. Detect lifeforms... bzzzt.
-    let allowUnconsciousAuras = game.settings.get("aurashare", "UnconsciousAuras");
-    let shareThreshold = 1;
-    if (game.settings.get("aurashare", "ShareZero")) {
-      shareThreshold = 0;
-      //if they have 0 HP we will share the aura if this flag is on.
-    }
-    if (aura?.hasItemBooleanFlag("shareUnconscious")) {
-      return true;
-    }
-    if (allowUnconsciousAuras) {
-      return true;
-    }
-    let hp = actor.system.attributes.hp.value;
-    if (hp >= shareThreshold || this.dieHardCheck(actor)) {
-      return true;
-    }
-    return false;
+  const activeUsers = game.users.filter((u) => u.active);
+  // 2. The user with this actor assigned
+  const primaryPlayer = actor.isToken ? null : activeUsers.find((u) => u.character?.id === actor.id);
+  if (primaryPlayer) {
+    return primaryPlayer;
   }
 
-  static getInactiveShareFlag(aura) {
-    //Check if an inactive aura should be shared.
-    if (aura.hasItemBooleanFlag("shareInactive")) {
-      return true;
-    }
-    return false;
-  }
+  // 3. Anyone who can update the actor
+  const firstUpdater = game.users
+    .filter((u) => actor.canUserModify(u, "update"))
+    .sort((a, b) => (a.id > b.id ? 1 : -1))
+    .shift();
+  return firstUpdater ?? null;
+}
 
-  static dieHardCheck(actor) {
-    let diehardEnabled = game.settings.get("aurashare", "Diehard");
-    let hasDiehardKey = actor.items.find(
-      (i) => (i._stats.compendiumSource ?? i.flags.core?.sourceId) === "Compendium.pf1.feats.Item.O0e0UCim27GPKFuW"
-    );
-    if ((actor.items.getName("Diehard") || hasDiehardKey) && diehardEnabled) {
-      return true;
-    }
-    return false;
-  }
+function canHaveAuras(scene) {
+  return scene.grid.type === CONST.GRID_TYPES.SQUARE;
+}
+
+function isInFocus(scene) {
+  const soleUserIsGM = game.user.isGM && game.users.filter((u) => u.active).length === 1;
+  return (scene.active && !soleUserIsGM) || (scene.isView && soleUserIsGM);
 }
