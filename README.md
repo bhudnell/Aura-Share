@@ -9,21 +9,19 @@ Aura Share: Automates the sharing of buffs between tokens. This makes handling a
 ## Instructions:
 
 <p>Create a buff (item on a character sheet) and give it a radius.</p>
-![parent aura UI](assets/parentAura.png)
+<img src="./assets/parentAura.png" alt="parent aura UI">
 
 <sub>...the buff now automatically shares depending on the flags below:</sub> <br> <br>
-![parent aura options](assets/auraOptions.png)
+<img src="./assets/auraOptions.png" alt="parent aura options">
 
 - shareInactive </br><sub>shares the buff even if it is toggled off. Great for buffs that only impact allies. <br></sub> <br>
 - shareEnemies </br><sub>shares the buff with enemies (instead of allies). Typically combined with shareInactive. <br></sub> <br>
 - shareNeutral </br> <sub>shares the buff with targets with neutral disposition. <br></sub> <br>
 - shareAll </br> <sub>shares the buff with everyone regardless of disposition. <br></sub> <br>
 - shareUnconscious </br><sub>shares the buff even if you're unconscious. (This works like the Diehard feat, but allows DMs more control over individual auras.) <br></sub> <br>
-  <br>
-  <br>
 
 <p>Child auras have a simplified UI that allows them to see the parent aura (if htey have permission to view it)</p>
-![child aura UI](assets/childAura.png)
+<img src="./assets/childAura.png" alt="child aura UI">
 
 ## Conditions for Applying Auras <br>
 
