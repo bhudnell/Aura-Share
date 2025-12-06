@@ -9,10 +9,10 @@ Aura Share: Automates the sharing of buffs between tokens. This makes handling a
 ## Instructions:
 
 <p>Create a buff (item on a character sheet) and give it a radius.</p>
-![parent aura UI](./assets/parentAura.png)
+![parent aura UI](assets/parentAura.png)
 
 <sub>...the buff now automatically shares depending on the flags below:</sub> <br> <br>
-![parent aura options](./assets/auraOptions.png)
+![parent aura options](assets/auraOptions.png)
 
 - shareInactive </br><sub>shares the buff even if it is toggled off. Great for buffs that only impact allies. <br></sub> <br>
 - shareEnemies </br><sub>shares the buff with enemies (instead of allies). Typically combined with shareInactive. <br></sub> <br>
@@ -23,7 +23,7 @@ Aura Share: Automates the sharing of buffs between tokens. This makes handling a
   <br>
 
 <p>Child auras have a simplified UI that allows them to see the parent aura (if htey have permission to view it)</p>
-![child aura UI](./assets/childAura.png)
+![child aura UI](assets/childAura.png)
 
 ## Conditions for Applying Auras <br>
 
