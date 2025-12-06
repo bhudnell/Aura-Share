@@ -14,13 +14,13 @@ Aura Share: Automates the sharing of buffs between tokens. This makes handling a
 <sub>...the buff now automatically shares depending on the flags below:</sub> <br> <br>
 <img src="./assets/auraOptions.png" alt="parent aura options">
 
-- shareInactive </br><sub>shares the buff even if it is toggled off. Great for buffs that only impact allies. <br></sub> <br>
-- shareEnemies </br><sub>shares the buff with enemies (instead of allies). Typically combined with shareInactive. <br></sub> <br>
-- shareNeutral </br> <sub>shares the buff with targets with neutral disposition. <br></sub> <br>
-- shareAll </br> <sub>shares the buff with everyone regardless of disposition. <br></sub> <br>
-- shareUnconscious </br><sub>shares the buff even if you're unconscious. (This works like the Diehard feat, but allows DMs more control over individual auras.) <br></sub> <br>
+- Share Inactive </br><sub>shares the buff even if it is toggled off. Great for buffs that only impact allies. <br></sub> <br>
+- Share Hostile </br><sub>shares the buff with enemies (instead of allies). Typically combined with shareInactive. <br></sub> <br>
+- Share Neutral </br> <sub>shares the buff with targets with neutral disposition. <br></sub> <br>
+- Share All </br> <sub>shares the buff with everyone regardless of disposition. <br></sub> <br>
+- Share Unconscious </br><sub>shares the buff even if you're unconscious. (This works like the Diehard feat, but allows DMs more control over individual auras.) <br></sub> <br>
 
-<p>Child auras have a simplified UI that allows them to see the parent aura (if htey have permission to view it)</p>
+<p>Child auras have a simplified UI that allows them to see the parent aura (if they have permission to view it)</p>
 <img src="./assets/childAura.png" alt="child aura UI">
 
 ## Conditions for Applying Auras <br>
@@ -29,7 +29,6 @@ Aura Share: Automates the sharing of buffs between tokens. This makes handling a
 
 - The source actor has a buff with a radius > 0. <br>
 - The buff is enabled, OR if the source actor's buff has the "shareInactive" Boolean flag. <br>
-  <br>
 
 <strong>Adds the buff to allies when:</strong> <br>
 
@@ -37,12 +36,10 @@ Aura Share: Automates the sharing of buffs between tokens. This makes handling a
 - The buff is toggled on. <br>
 - A Token is created in the scene, and allies are in range. <br>
 - The aura actor's HP rises above 0. <br>
-  <br>
 
 <strong>Adds the buff to enemies if:</strong> <br>
 
 - The buff also has a "shareEnemies" Boolean Flag. Note: You typically would combine this with "shareInactive" so that the buff doesn't hurt the source actor. <br>
-  <br>
 
 <strong>Deactives or Deletes the buff when:</strong> <br>
 <sub>NOTE: These can be toggled between activate auras and delete auras in the module settings</sub> <br>
@@ -51,9 +48,7 @@ Aura Share: Automates the sharing of buffs between tokens. This makes handling a
 - The recipient moves out of range. <br>
 - The source disables the buff, and the buff does not have the "alliesOnly" Boolean Flag <br>
 - The source's HP falls below zero, unless: It has the Diehard feat -OR- Unconscious Auras is toggled OFF in the menus. <br>
-  <br>
 
 <strong>Deletes the buff when:</strong> <br>
 
-- the source is deleted. <br>
-  <br>
+- the source is deleted.
