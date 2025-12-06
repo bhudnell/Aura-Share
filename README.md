@@ -8,26 +8,22 @@ Aura Share: Automates the sharing of buffs between tokens. This makes handling a
 
 ## Instructions:
 
-<p>Create a buff (item on a character sheet) with the dictionary flag: "radius" of at least 0.</p>
+<p>Create a buff (item on a character sheet) and give it a radius.</p>
+![image](/assets/parentAura.png)
+
 <sub>...the buff now automatically shares depending on the flags below:</sub> <br> <br>
-<strong>Mandatory flags for the buff to share:</strong> <br>
+![image](/assets/auraOptions.png)
 
-- radius </br><sub>flag type: Dictionary </br> setting this above -1 triggers the buff or "aura" to share. <br></sub> <br>
+- shareInactive </br><sub>shares the buff even if it is toggled off. Great for buffs that only impact allies. <br></sub> <br>
+- shareEnemies </br><sub>shares the buff with enemies (instead of allies). Typically combined with shareInactive. <br></sub> <br>
+- shareNeutral </br> <sub>shares the buff with targets with neutral disposition. <br></sub> <br>
+- shareAll </br> <sub>shares the buff with everyone regardless of disposition. <br></sub> <br>
+- shareUnconscious </br><sub>shares the buff even if you're unconscious. (This works like the Diehard feat, but allows DMs more control over individual auras.) <br></sub> <br>
+  <br>
+  <br>
 
-<strong>Optional flags that can be added to the buff:</strong> <br>
-
-- shareInactive </br><sub>flag type: Boolean </br> shares the buff even if it is toggled off. Great for buffs that only impact allies. <br></sub> <br>
-- shareEnemies </br><sub>flag type: Boolean </br> shares the buff with enemies (instead of allies). Typically combined with shareInactive. <br></sub> <br>
-- shareNeutral </br> <sub>flag type: Boolean </br> shares the buff with targets with neutral disposition. <br></sub> <br>
-- shareAll </br> <sub>flag type: Boolean </br> shares the buff with everyone regardless of disposition. <br></sub> <br>
-- shareUnconscious </br><sub>flag type: Boolean </br> shares the buff even if you're unconscious. (This works like the Diehard feat, but allows DMs more control over individual auras.) <br></sub> <br>
-  <sub><strong>note: these are case sensitive.</strong></sub> <br>
-  <br>
-  Example: <br>
-  ![image](https://i.imgur.com/zRj6ITb.png)
-  <br>
-  <br>
-  <br>
+<p>Child auras have a simplified UI that allows them to see the parent aura (if htey have permission to view it)</p>
+![image](/assets/childAura.png)
 
 ## Conditions for Applying Auras <br>
 
