@@ -12,6 +12,8 @@
     },
     "Sheet": {
       "Title": "Aura Sharing",
+      "ChildAura": "(Child Aura)",
+      "ParentAura": "Parent Aura",
       "Radius": "Aura Radius",
       "Flags": {
         "Label": "Aura Options",

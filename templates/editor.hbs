@@ -1,9 +1,34 @@
-<h3 class="form-header"><i class="ra ra-aura"></i> {{localize 'AuraShare.Sheet.Title'}}</h3>
+<h3 class="form-header">
+  <i class="ra ra-aura"></i>
+  {{localize 'AuraShare.Sheet.Title'}}
+  {{#if childAura}}{{localize "AuraShare.Sheet.ChildAura"}}{{/if}}
+</h3>
 
+{{#if childAura}}
+<div class="form-fields" style="margin: 6px 0">
+  <a class="aura-share-parent-aura" style="color: var(--pf1-control-color)">
+    <i class="fa-solid fa-edit"></i>
+  </a>
+  <label>{{localize "AuraShare.Sheet.ParentAura"}}</label>
+</div>
+{{else}}
 <div class="form-group">
   <label>{{localize 'AuraShare.Sheet.Radius'}}</label>
   <div class="form-fields">
-    {{numberInput radius class="aura-share-radius"}}
+    <span style="flex: 0; padding-left: 4px">=</span>
+    <label>
+      {{#if error}}
+      <i class="fa-solid fa-triangle-exclamation" style="color: var(--pf1-color-text-error)"></i>
+      {{else if evaluated}}
+      {{#if evaluated.isDeterministic}}
+      {{ evaluated.total }}
+      {{else}}
+      <i class="fa-solid fa-dice"></i>
+      {{/if}}
+      {{else}}
+      &nbsp;
+      {{/if}}
+    </label>
   </div>
 </div>
 
@@ -26,3 +51,4 @@
     </a>
   </div>
 </div>
+{{/if}}

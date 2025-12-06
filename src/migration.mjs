@@ -1,5 +1,5 @@
 /* eslint-disable no-await-in-loop */
-import { flagLabels, MODULE, OPTIONS_FLAG, RADIUS_FLAG } from "./config.mjs";
+import { flagLabels, MODULE, OPTIONS_FLAG, PARENT_AURA_FLAG, RADIUS_FLAG } from "./config.mjs";
 
 const truthiness = (x) => (typeof x === "string" ? !!x?.trim() : !!x);
 
@@ -31,13 +31,18 @@ class Migration {
           },
         },
         flags: {
-          [MODULE]: {
-            [RADIUS_FLAG]: radius,
-          },
+          [MODULE]: {},
         },
       };
 
-      if (newFlags.length) {
+      if (radius === -1) {
+        // this aura will be deleted and remade with the correct parent aura id but this is needed to mark it as a child aura
+        update.flags[MODULE][PARENT_AURA_FLAG] = "fakeParentAuraId";
+      } else {
+        update.flags[MODULE][RADIUS_FLAG] = radius;
+      }
+
+      if (radius > -1 && newFlags.length) {
         update.flags[MODULE][OPTIONS_FLAG] = newFlags;
       }
 
