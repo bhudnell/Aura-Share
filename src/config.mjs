@@ -1,5 +1,5 @@
 export const MODULE = "aurashare";
-export const PARENT_AURA_FLAG = "parentAuraId";
+export const PARENT_AURA_FLAG = "parentAuraUuid";
 export const RADIUS_FLAG = "radius";
 export const OPTIONS_FLAG = "flags";
 
