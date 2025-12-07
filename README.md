@@ -11,7 +11,7 @@ Aura Share: Automates the sharing of buffs between tokens. This makes handling a
 <p>Create a buff (item on a character sheet) and give it a radius.</p>
 <img src="./assets/parentAura.png" alt="parent aura UI">
 
-<sub>...the buff now automatically shares depending on the flags below:</sub> <br> <br>
+<sub>...the buff now automatically shares depending on the options below:</sub> <br> <br>
 <img src="./assets/auraOptions.png" alt="parent aura options">
 
 - Share Inactive </br><sub>shares the buff even if it is toggled off. Great for buffs that only impact allies. <br></sub> <br>
