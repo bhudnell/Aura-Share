@@ -5,7 +5,7 @@ export const OPTIONS_FLAG = "flags";
 
 export const flagLabels = {
   shareInactive: "AuraShare.Sheet.Flags.ShareInactive",
-  shareEnemies: "AuraShare.Sheet.Flags.ShareHostile",
+  shareEnemies: "AuraShare.Sheet.Flags.ShareEnemies",
   shareNeutral: "AuraShare.Sheet.Flags.ShareNeutral",
   shareAll: "AuraShare.Sheet.Flags.ShareAll",
   shareUnconscious: "AuraShare.Sheet.Flags.ShareUnconscious",

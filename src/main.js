@@ -1,5 +1,5 @@
 import { checkAuras } from "./auralogic.js";
-import { flagLabels } from "./config.mjs";
+import { flagLabels, MODULE, RADIUS_FLAG } from "./config.mjs";
 import { migrate } from "./migration.mjs";
 import { renderItemSheetAuraEditor } from "./renderItemSheetAuraEditor.mjs";
 import { Settings } from "./settings.js";
@@ -57,25 +57,21 @@ Hooks.on("preDeleteToken", (token, _options, _userId) => {
 
 // check auras when parent aura is created
 Hooks.on("createItem", (item, _options, _userId) => {
-  if (item.actor && item.type === "buff" && item.getItemDictionaryFlag("radius") > -1) {
+  if (item.actor && item.type === "buff" && item.getFlag(MODULE, RADIUS_FLAG) != null) {
     checkAurasPromisified(item.actor.getActiveTokens()[0]?.scene);
   }
 });
 
-// check auras when aura radius changes or aura is toggled
+// check auras when aura radius/options change or aura is toggled
 Hooks.on("updateItem", (item, update, _options, _userId) => {
-  if (
-    item.actor &&
-    item.type === "buff" &&
-    (update.system?.active != null || update.system?.flags?.dictionary?.radius != null)
-  ) {
+  if (item.actor && item.type === "buff" && (update.system?.active != null || update.flags?.[MODULE] != null)) {
     checkAurasPromisified(item.actor.getActiveTokens()[0]?.scene);
   }
 });
 
 // check auras when parent aura is deleted
 Hooks.on("preDeleteItem", (item, _options, _userId) => {
-  if (item.actor && item.type === "buff" && item.getItemDictionaryFlag("radius") > -1) {
+  if (item.actor && item.type === "buff" && item.getFlag(MODULE, RADIUS_FLAG) != null) {
     checkAurasPromisified(item.actor.getActiveTokens()[0]?.scene);
   }
 });

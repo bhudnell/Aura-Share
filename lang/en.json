@@ -18,7 +18,7 @@
       "Flags": {
         "Label": "Aura Options",
         "ShareInactive": "Share Inactive",
-        "ShareHostile": "Share Hostile",
+        "ShareEnemies": "Share Enemies",
         "ShareNeutral": "Share Neutral",
         "ShareAll": "Share All",
         "ShareUnconscious": "Share Unconscious"

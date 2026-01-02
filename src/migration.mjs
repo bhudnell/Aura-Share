@@ -9,44 +9,46 @@ function log(msg) {
 
 class Migration {
   static getItemUpdateData(item) {
-    const radius = item.getItemDictionaryFlag(RADIUS_FLAG);
-    if (item.type === "buff" && radius != null) {
-      const oldFlags = item.getItemBooleanFlags();
-      const newFlags = Object.keys(flagLabels).filter((flag) => oldFlags.includes(flag));
+    if (item.type === "buff") {
+      const radius = item.getItemDictionaryFlag("radius");
+      if (radius != null) {
+        const oldFlags = item.getItemBooleanFlags();
+        const newFlags = Object.keys(flagLabels).filter((flag) => oldFlags.includes(flag));
 
-      const update = {
-        _id: item.id,
-        system: {
-          flags: {
-            dictionary: {
-              [`-=${RADIUS_FLAG}`]: null,
-            },
-            boolean: {
-              "-=shareInactive": null,
-              "-=shareEnemies": null,
-              "-=shareNeutral": null,
-              "-=shareAll": null,
-              "-=shareUnconscious": null,
+        const update = {
+          _id: item.id,
+          system: {
+            flags: {
+              dictionary: {
+                "-=radius": null,
+              },
+              boolean: {
+                "-=shareInactive": null,
+                "-=shareEnemies": null,
+                "-=shareNeutral": null,
+                "-=shareAll": null,
+                "-=shareUnconscious": null,
+              },
             },
           },
-        },
-        flags: {
-          [MODULE]: {},
-        },
-      };
+          flags: {
+            [MODULE]: {},
+          },
+        };
 
-      if (radius === -1) {
-        // this aura will be deleted and remade with the correct parent aura id but this is needed to mark it as a child aura
-        update.flags[MODULE][PARENT_AURA_FLAG] = "fakeParentAuraId";
-      } else {
-        update.flags[MODULE][RADIUS_FLAG] = radius;
+        if (radius === -1) {
+          // this aura will be deleted and remade with the correct parent aura id but this is needed to mark it as a child aura
+          update.flags[MODULE][PARENT_AURA_FLAG] = "fakeParentAuraId";
+        } else {
+          update.flags[MODULE][RADIUS_FLAG] = radius;
+        }
+
+        if (radius > -1 && newFlags.length) {
+          update.flags[MODULE][OPTIONS_FLAG] = newFlags;
+        }
+
+        return update;
       }
-
-      if (radius > -1 && newFlags.length) {
-        update.flags[MODULE][OPTIONS_FLAG] = newFlags;
-      }
-
-      return update;
     }
   }
 

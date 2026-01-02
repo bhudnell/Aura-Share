@@ -15,7 +15,7 @@ Aura Share: Automates the sharing of buffs between tokens. This makes handling a
 <img src="./assets/auraOptions.png" alt="parent aura options">
 
 - Share Inactive </br><sub>shares the buff even if it is toggled off. Great for buffs that only impact allies. <br></sub> <br>
-- Share Hostile </br><sub>shares the buff with enemies (instead of allies). Typically combined with Share Inactive. <br></sub> <br>
+- Share Enemies </br><sub>shares the buff with enemies (instead of allies). Typically combined with Share Inactive. <br></sub> <br>
 - Share Neutral </br> <sub>shares the buff with targets with neutral disposition. <br></sub> <br>
 - Share All </br> <sub>shares the buff with everyone regardless of disposition. <br></sub> <br>
 - Share Unconscious </br><sub>shares the buff even if you're unconscious. (This works like the Diehard feat, but allows DMs more control over individual auras.) <br></sub> <br>
@@ -39,7 +39,7 @@ Aura Share: Automates the sharing of buffs between tokens. This makes handling a
 
 <strong>Adds the buff to enemies if:</strong> <br>
 
-- The buff also has the Share Hostile option. Note: You typically would combine this with the Share Inactive option so that the buff doesn't hurt the source actor. <br>
+- The buff also has the Share Enemies option. Note: You typically would combine this with the Share Inactive option so that the buff doesn't hurt the source actor. <br>
 
 <strong>Deactives or Deletes the buff when:</strong> <br>
 <sub>NOTE: These can be toggled between activate auras and delete auras in the module settings</sub> <br>
