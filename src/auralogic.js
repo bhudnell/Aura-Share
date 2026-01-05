@@ -15,7 +15,7 @@ export const checkAuras = foundry.utils.debounce(async function (scene) {
 
   try {
     const actors = new Set(
-      scene.tokens.contents.flatMap((t) => (primaryUpdater(t.actor) === game.user ? t.actor : []))
+      scene.tokens.contents.flatMap((t) => (t.actor && primaryUpdater(t.actor) === game.user ? t.actor : []))
     );
 
     // parentAuras: {aura, radius}[], childAuras: aura[]
